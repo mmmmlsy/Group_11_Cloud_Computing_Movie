@@ -1,17 +1,26 @@
 <?php
-// scripts/fetch_tmdb.php
-// Fetches 20 popular movies from TMDB and re-seeds the filmvault database.
-// Run from EC2: php scripts/fetch_tmdb.php
-// Requires TMDB_API_KEY in .env
+// scripts/fetch_tmdb.php — runs locally on your Mac, NOT on EC2
+//
+// What it does:
+//   1. Fetches 20 popular movies from TMDB
+//   2. Downloads poster JPGs to posters/
+//   3. Generates sql/tmdb_seed.sql
+//
+// After running:
+//   - Upload the posters/ folder contents to S3
+//   - Run sql/tmdb_seed.sql on EC2 against RDS
 
-require_once __DIR__ . '/../config/db.php';
+$env_path = __DIR__ . '/../.env';
+if (!file_exists($env_path)) die("Error: .env not found. Copy .env.example to .env first.\n");
+$env = parse_ini_file($env_path);
 
 $api_key  = $env['TMDB_API_KEY'] ?? '';
 $img_base = 'https://image.tmdb.org/t/p/w500';
 
-if (!$api_key) {
-    die("Error: TMDB_API_KEY not set in .env\n");
-}
+if (!$api_key) die("Error: TMDB_API_KEY not set in .env\n");
+
+$posters_dir = __DIR__ . '/../posters';
+if (!is_dir($posters_dir)) mkdir($posters_dir, 0755, true);
 
 function tmdb_get(string $url): ?array {
     $ch = curl_init($url);
@@ -27,7 +36,24 @@ function tmdb_get(string $url): ?array {
     return json_decode($body, true) ?: null;
 }
 
-// TMDB genre ID → our genre label
+function download_image(string $url, string $dest): bool {
+    $ch = curl_init($url);
+    $fp = fopen($dest, 'wb');
+    curl_setopt_array($ch, [
+        CURLOPT_FILE      => $fp,
+        CURLOPT_TIMEOUT   => 30,
+        CURLOPT_USERAGENT => 'FilmVault/1.0',
+    ]);
+    $ok = curl_exec($ch) && !curl_errno($ch);
+    curl_close($ch);
+    fclose($fp);
+    return $ok;
+}
+
+function sql_escape(string $val): string {
+    return str_replace(["\\", "'"], ["\\\\", "''"], $val);
+}
+
 $genre_map = [
     28    => 'Action',
     12    => 'Adventure',
@@ -36,7 +62,6 @@ $genre_map = [
     80    => 'Crime',
     99    => 'Documentary',
     18    => 'Drama',
-    10751 => 'Family',
     14    => 'Fantasy',
     27    => 'Horror',
     10749 => 'Romance',
@@ -48,58 +73,35 @@ $genre_map = [
 echo "Fetching popular movies from TMDB...\n\n";
 
 $data = tmdb_get("https://api.themoviedb.org/3/movie/popular?api_key={$api_key}&language=en-US&page=1");
-
 if (!$data || empty($data['results'])) {
-    die("Error: Could not fetch movies. Check your TMDB_API_KEY in .env\n");
+    die("Error: Could not fetch movies. Check your TMDB_API_KEY.\n");
 }
 
-// Clear existing movies and genres (comments cascade-deleted with movies)
-$conn->query('SET FOREIGN_KEY_CHECKS = 0');
-$conn->query('TRUNCATE TABLE movies');
-$conn->query('TRUNCATE TABLE genres');
-$conn->query('SET FOREIGN_KEY_CHECKS = 1');
-echo "Cleared existing movies and genres.\n\n";
-
-$genre_cache = [];
-
-function get_or_create_genre(mysqli $conn, string $name, array &$cache): int {
-    if (isset($cache[$name])) return $cache[$name];
-    $stmt = $conn->prepare('INSERT IGNORE INTO genres (name) VALUES (?)');
-    $stmt->bind_param('s', $name);
-    $stmt->execute();
-    if ($conn->insert_id) {
-        $cache[$name] = (int)$conn->insert_id;
-        $stmt->close();
-        return $cache[$name];
-    }
-    $stmt->close();
-    $s2 = $conn->prepare('SELECT id FROM genres WHERE name = ?');
-    $s2->bind_param('s', $name);
-    $s2->execute();
-    $cache[$name] = (int)$s2->get_result()->fetch_row()[0];
-    $s2->close();
-    return $cache[$name];
-}
-
-$inserted = 0;
+$genres_used  = []; // name => sequential id
+$genre_seq    = 1;
+$movie_rows   = [];
 
 foreach ($data['results'] as $movie) {
-    if ($inserted >= 20) break;
+    if (count($movie_rows) >= 20) break;
 
     $title    = trim($movie['title'] ?? '');
     $synopsis = trim($movie['overview'] ?? '');
     $year     = (int)substr($movie['release_date'] ?? '2000-01-01', 0, 4);
-    $poster   = !empty($movie['poster_path']) ? $img_base . $movie['poster_path'] : '';
+    $poster   = $movie['poster_path'] ?? '';
 
     if (!$title || !$poster || !$year) continue;
 
-    // Use first recognisable genre
-    $genre_name = 'Other';
+    // Map first recognisable genre
+    $genre_name = 'Drama';
     foreach ($movie['genre_ids'] as $gid) {
         if (isset($genre_map[$gid])) { $genre_name = $genre_map[$gid]; break; }
     }
 
-    // Fetch director from credits endpoint
+    if (!isset($genres_used[$genre_name])) {
+        $genres_used[$genre_name] = $genre_seq++;
+    }
+
+    // Fetch director
     $director = 'Unknown';
     $credits  = tmdb_get("https://api.themoviedb.org/3/movie/{$movie['id']}/credits?api_key={$api_key}");
     if ($credits && !empty($credits['crew'])) {
@@ -108,20 +110,60 @@ foreach ($data['results'] as $movie) {
         }
     }
 
-    $genre_id = get_or_create_genre($conn, $genre_name, $genre_cache);
+    // Download poster
+    $filename = $movie['id'] . '.jpg';
+    $dest     = $posters_dir . '/' . $filename;
+    $ok       = download_image($img_base . $poster, $dest);
 
-    $stmt = $conn->prepare(
-        'INSERT INTO movies (title, genre_id, year, director, synopsis, poster_filename)
-         VALUES (?, ?, ?, ?, ?, ?)'
-    );
-    $stmt->bind_param('siisss', $title, $genre_id, $year, $director, $synopsis, $poster);
-    $stmt->execute();
-    $stmt->close();
+    $movie_rows[] = [
+        'title'           => $title,
+        'genre_id'        => $genres_used[$genre_name],
+        'year'            => $year,
+        'director'        => $director,
+        'synopsis'        => $synopsis,
+        'poster_filename' => $filename,
+    ];
 
-    echo sprintf("  [%2d] %-45s (%d)  %s  [%s]\n",
-        $inserted + 1, $title, $year, $director, $genre_name);
-
-    $inserted++;
+    echo sprintf("  [%2d] %-40s (%d)  %-20s  [%s]  poster:%s\n",
+        count($movie_rows), $title, $year, $director, $genre_name,
+        $ok ? 'ok' : 'FAILED');
 }
 
-echo "\nDone — {$inserted} movies added to filmvault.\n";
+// Generate sql/tmdb_seed.sql
+$sql  = "-- FilmVault TMDB seed — generated " . date('Y-m-d H:i:s') . "\n";
+$sql .= "-- Run on EC2: mysql -h <RDS_ENDPOINT> -P 3306 -u admin -p filmvault < sql/tmdb_seed.sql\n\n";
+$sql .= "USE filmvault;\n\n";
+$sql .= "SET FOREIGN_KEY_CHECKS = 0;\n";
+$sql .= "TRUNCATE TABLE movies;\n";
+$sql .= "TRUNCATE TABLE genres;\n";
+$sql .= "SET FOREIGN_KEY_CHECKS = 1;\n\n";
+
+foreach ($genres_used as $name => $id) {
+    $sql .= "INSERT INTO genres (id, name) VALUES ({$id}, '" . sql_escape($name) . "');\n";
+}
+
+$sql .= "\n";
+
+foreach ($movie_rows as $m) {
+    $sql .= sprintf(
+        "INSERT INTO movies (title, genre_id, year, director, synopsis, poster_filename) VALUES ('%s', %d, %d, '%s', '%s', '%s');\n",
+        sql_escape($m['title']),
+        $m['genre_id'],
+        $m['year'],
+        sql_escape($m['director']),
+        sql_escape($m['synopsis']),
+        $m['poster_filename']
+    );
+}
+
+$sql_path = __DIR__ . '/../sql/tmdb_seed.sql';
+file_put_contents($sql_path, $sql);
+
+echo "\n--- Done ---\n";
+echo count($movie_rows) . " movies fetched.\n";
+echo "Posters downloaded to:  posters/\n";
+echo "SQL file generated at:  sql/tmdb_seed.sql\n\n";
+echo "Next steps:\n";
+echo "  1. Upload posters/ contents to your S3 bucket\n";
+echo "  2. git add sql/tmdb_seed.sql && git push\n";
+echo "  3. On EC2: git pull && mysql ... < sql/tmdb_seed.sql\n";

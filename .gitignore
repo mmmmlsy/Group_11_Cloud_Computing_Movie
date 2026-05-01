@@ -1,3 +1,5 @@
 .env
 *.env
 .DS_Store
+posters/
+sql/tmdb_seed.sql
