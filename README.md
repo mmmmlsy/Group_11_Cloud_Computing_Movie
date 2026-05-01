@@ -104,4 +104,4 @@ Copy your `.env` to each instance — **never commit `.env` to git**.
 
 ## Team
 
-Group 11 · CMP6210 Cloud Computing · Kaplan Australia · 2025
+Group 11 · CMP6210 Cloud Computing · BCU
