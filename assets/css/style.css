@@ -319,23 +319,220 @@ footer {
 }
 
 /* ── Responsive ── */
+/* ── Header search ── */
+.header-search {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    max-width: 380px;
+    margin: 0 1.5rem;
+}
+
+.header-search input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 0.45rem 0.9rem;
+    font-size: 0.9rem;
+}
+
+.header-search input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+.header-search button {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--muted);
+    padding: 0.45rem 0.65rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.header-search button:hover { color: var(--text); border-color: var(--muted); }
+
+/* ── Nav user ── */
+.nav-user {
+    color: var(--text);
+    font-size: 0.9rem;
+    margin-left: 1.5rem;
+    font-weight: 600;
+}
+
+/* ── Alert messages ── */
+.alert {
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.9rem;
+}
+
+.alert-success { background: #1a3a2a; color: #4ade80; border: 1px solid #166534; }
+.alert-error   { background: #3a1a1a; color: #f87171; border: 1px solid #991b1b; }
+
+/* ── Auth / form pages ── */
+.form-page { max-width: 420px; margin: 3rem auto; }
+
+.form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 2rem;
+}
+
+.form-card h1 { font-size: 1.5rem; margin-bottom: 1.5rem; }
+
+.form-group { margin-bottom: 1.25rem; }
+
+.form-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 0.4rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 0.6rem 0.9rem;
+    font-size: 0.95rem;
+    font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+.form-group textarea { resize: vertical; min-height: 90px; }
+
+.form-footer { margin-top: 1.25rem; font-size: 0.85rem; color: var(--muted); text-align: center; }
+.form-footer a { color: var(--text); }
+
+/* ── Tabs ── */
+.tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--muted);
+    padding: 0.6rem 1.25rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+    margin-bottom: -1px;
+}
+
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── Comments ── */
+.comments-list { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; }
+
+.comment {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.9rem 1rem;
+}
+
+.comment-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.4rem; }
+.comment-author { font-weight: 600; font-size: 0.9rem; }
+.comment-date   { font-size: 0.78rem; color: var(--muted); }
+.comment-body   { font-size: 0.95rem; line-height: 1.6; }
+
+.comment-form textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 0.75rem;
+    font-size: 0.95rem;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 90px;
+    margin-bottom: 0.75rem;
+    display: block;
+}
+
+.comment-form textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+.login-prompt {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+.login-prompt a { color: var(--accent); text-decoration: none; }
+.login-prompt a:hover { text-decoration: underline; }
+
+/* ── Admin panel ── */
+.admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
+
+.admin-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+}
+
+.admin-card h2 {
+    font-size: 1.05rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.film-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+
+.film-table th {
+    text-align: left;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.film-table td { padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border); }
+.film-table tr:last-child td { border-bottom: none; }
+
+/* ── Search results ── */
+.search-results-header { color: var(--muted); font-size: 0.95rem; margin-top: 0.25rem; }
+.search-results-header strong { color: var(--text); }
+
+/* ── Responsive ── */
 @media (max-width: 768px) {
-    header { padding: 1rem; }
+    header { padding: 1rem; flex-wrap: wrap; gap: 0.75rem; }
     main { padding: 1rem; }
 
-    .detail-layout {
-        grid-template-columns: 1fr;
-    }
+    .header-search { max-width: 100%; order: 3; flex: 0 0 100%; margin: 0; }
 
-    .detail-poster {
-        max-width: 220px;
-        margin: 0 auto;
-    }
-
+    .detail-layout { grid-template-columns: 1fr; }
+    .detail-poster { max-width: 220px; margin: 0 auto; }
     .detail-info h1 { font-size: 1.5rem; }
 
-    .movie-grid {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-        gap: 1rem;
-    }
+    .movie-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem; }
+
+    .admin-grid { grid-template-columns: 1fr; }
 }

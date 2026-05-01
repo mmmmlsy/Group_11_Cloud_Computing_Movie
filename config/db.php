@@ -1,4 +1,8 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 $env_path = __DIR__ . '/../.env';
 
 if (!file_exists($env_path)) {
@@ -22,3 +26,4 @@ if ($conn->connect_error) {
 $conn->set_charset('utf8mb4');
 
 $cloudfront_url = rtrim($env['CLOUDFRONT_URL'] ?? '', '/');
+$admin_password = $env['ADMIN_PASSWORD'] ?? '';
