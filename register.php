@@ -25,7 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         );
         $stmt->bind_param('ssss', $email, $hash, $display_name, $token);
 
-        if ($stmt->execute()) {
+        try {
+            $stmt->execute();
             $stmt->close();
 
             $app_url = rtrim($env['APP_URL'] ?? '', '/');
@@ -41,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             send_email($env, $email, 'Verify your FilmVault email', $html);
             $sent = true;
-        } else {
+        } catch (\mysqli_sql_exception $e) {
             $stmt->close();
             $errors[] = 'That email address is already registered.';
         }
