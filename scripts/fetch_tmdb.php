@@ -70,63 +70,67 @@ $genre_map = [
     10752 => 'War',
 ];
 
-echo "Fetching popular movies from TMDB...\n\n";
+$target      = 50;
+$genres_used = [];
+$genre_seq   = 1;
+$movie_rows  = [];
+$page        = 1;
 
-$data = tmdb_get("https://api.themoviedb.org/3/movie/popular?api_key={$api_key}&language=en-US&page=1");
-if (!$data || empty($data['results'])) {
-    die("Error: Could not fetch movies. Check your TMDB_API_KEY.\n");
-}
+echo "Fetching {$target} movies from TMDB (multiple pages)...\n\n";
 
-$genres_used  = []; // name => sequential id
-$genre_seq    = 1;
-$movie_rows   = [];
+while (count($movie_rows) < $target && $page <= 3) {
+    $data = tmdb_get("https://api.themoviedb.org/3/movie/popular?api_key={$api_key}&language=en-US&page={$page}");
+    if (!$data || empty($data['results'])) break;
 
-foreach ($data['results'] as $movie) {
-    if (count($movie_rows) >= 20) break;
+    foreach ($data['results'] as $movie) {
+        if (count($movie_rows) >= $target) break;
 
-    $title    = trim($movie['title'] ?? '');
-    $synopsis = trim($movie['overview'] ?? '');
-    $year     = (int)substr($movie['release_date'] ?? '2000-01-01', 0, 4);
-    $poster   = $movie['poster_path'] ?? '';
+        $title    = trim($movie['title'] ?? '');
+        $synopsis = trim($movie['overview'] ?? '');
+        $year     = (int)substr($movie['release_date'] ?? '2000-01-01', 0, 4);
+        $poster   = $movie['poster_path'] ?? '';
 
-    if (!$title || !$poster || !$year) continue;
+        if (!$title || !$poster || !$year) continue;
 
-    // Map first recognisable genre
-    $genre_name = 'Drama';
-    foreach ($movie['genre_ids'] as $gid) {
-        if (isset($genre_map[$gid])) { $genre_name = $genre_map[$gid]; break; }
-    }
-
-    if (!isset($genres_used[$genre_name])) {
-        $genres_used[$genre_name] = $genre_seq++;
-    }
-
-    // Fetch director
-    $director = 'Unknown';
-    $credits  = tmdb_get("https://api.themoviedb.org/3/movie/{$movie['id']}/credits?api_key={$api_key}");
-    if ($credits && !empty($credits['crew'])) {
-        foreach ($credits['crew'] as $person) {
-            if ($person['job'] === 'Director') { $director = $person['name']; break; }
+        // Map first recognisable genre
+        $genre_name = 'Drama';
+        foreach ($movie['genre_ids'] as $gid) {
+            if (isset($genre_map[$gid])) { $genre_name = $genre_map[$gid]; break; }
         }
+
+        if (!isset($genres_used[$genre_name])) {
+            $genres_used[$genre_name] = $genre_seq++;
+        }
+
+        // Fetch director
+        $director = 'Unknown';
+        $credits  = tmdb_get("https://api.themoviedb.org/3/movie/{$movie['id']}/credits?api_key={$api_key}");
+        if ($credits && !empty($credits['crew'])) {
+            foreach ($credits['crew'] as $person) {
+                if ($person['job'] === 'Director') { $director = $person['name']; break; }
+            }
+        }
+
+        // Download poster
+        $filename = $movie['id'] . '.jpg';
+        $dest     = $posters_dir . '/' . $filename;
+        $ok       = download_image($img_base . $poster, $dest);
+
+        $movie_rows[] = [
+            'title'           => $title,
+            'genre_id'        => $genres_used[$genre_name],
+            'year'            => $year,
+            'director'        => $director,
+            'synopsis'        => $synopsis,
+            'poster_filename' => $filename,
+        ];
+
+        echo sprintf("  [%2d] %-40s (%d)  %-22s  [%s]  poster:%s\n",
+            count($movie_rows), $title, $year, $director, $genre_name,
+            $ok ? 'ok' : 'FAILED');
     }
 
-    // Download poster
-    $filename = $movie['id'] . '.jpg';
-    $dest     = $posters_dir . '/' . $filename;
-    $ok       = download_image($img_base . $poster, $dest);
-
-    $movie_rows[] = [
-        'title'           => $title,
-        'genre_id'        => $genres_used[$genre_name],
-        'year'            => $year,
-        'director'        => $director,
-        'synopsis'        => $synopsis,
-        'poster_filename' => $filename,
-    ];
-
-    echo sprintf("  [%2d] %-40s (%d)  %-20s  [%s]  poster:%s\n",
-        count($movie_rows), $title, $year, $director, $genre_name,
-        $ok ? 'ok' : 'FAILED');
+    $page++;
 }
 
 // Generate sql/tmdb_seed.sql
