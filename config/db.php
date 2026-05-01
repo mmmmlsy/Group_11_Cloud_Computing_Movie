@@ -11,12 +11,16 @@ if (!file_exists($env_path)) {
 
 $env = parse_ini_file($env_path);
 
+$db_host   = $env['DB_HOST'];
+$db_socket = ($db_host === 'localhost') ? ($env['DB_SOCKET'] ?? null) : null;
+
 $conn = new mysqli(
-    $env['DB_HOST'],
+    $db_host,
     $env['DB_USER'],
     $env['DB_PASS'],
     $env['DB_NAME'],
-    (int)($env['DB_PORT'] ?? 3306)
+    (int)($env['DB_PORT'] ?? 3306),
+    $db_socket
 );
 
 if ($conn->connect_error) {
@@ -27,3 +31,9 @@ $conn->set_charset('utf8mb4');
 
 $cloudfront_url = rtrim($env['CLOUDFRONT_URL'] ?? '', '/');
 $admin_password = $env['ADMIN_PASSWORD'] ?? '';
+
+function poster_src(string $filename, string $cloudfront_url): string {
+    if (str_starts_with($filename, 'http')) return $filename;
+    if ($cloudfront_url !== '') return $cloudfront_url . '/' . $filename;
+    return '';
+}

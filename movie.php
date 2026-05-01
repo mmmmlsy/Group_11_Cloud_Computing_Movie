@@ -52,8 +52,9 @@ require_once __DIR__ . '/includes/header.php';
 
     <div class="detail-layout">
         <div class="detail-poster">
-            <?php if ($cloudfront_url): ?>
-                <img src="<?= htmlspecialchars($cloudfront_url . '/' . $movie['poster_filename']) ?>"
+            <?php $psrc = poster_src($movie['poster_filename'], $cloudfront_url); ?>
+            <?php if ($psrc): ?>
+                <img src="<?= htmlspecialchars($psrc) ?>"
                      alt="<?= htmlspecialchars($movie['title']) ?> poster"
                      onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
                 <div class="poster-placeholder" style="display:none">🎬</div>

@@ -43,8 +43,9 @@ require_once __DIR__ . '/includes/header.php';
             <?php foreach ($movies as $movie): ?>
                 <a href="/movie.php?id=<?= (int)$movie['id'] ?>" class="movie-card">
                     <div class="poster-wrap">
-                        <?php if ($cloudfront_url): ?>
-                            <img src="<?= htmlspecialchars($cloudfront_url . '/' . $movie['poster_filename']) ?>"
+                        <?php $psrc = poster_src($movie['poster_filename'], $cloudfront_url); ?>
+                        <?php if ($psrc): ?>
+                            <img src="<?= htmlspecialchars($psrc) ?>"
                                  alt="<?= htmlspecialchars($movie['title']) ?> poster"
                                  loading="lazy"
                                  onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">

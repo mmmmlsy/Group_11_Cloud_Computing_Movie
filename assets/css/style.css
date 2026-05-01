@@ -43,7 +43,13 @@ header {
     color: var(--text);
 }
 
-.logo span { color: var(--accent); }
+.logo span {
+    color: #000;
+    background: #f97316;
+    border-radius: 6px;
+    padding: 2px 8px;
+    display: inline-block;
+}
 
 nav a {
     color: var(--muted);
