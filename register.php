@@ -60,6 +60,7 @@ require_once __DIR__ . '/includes/header.php';
             <?php if ($sent): ?>
                 <div class="alert alert-success">
                     Account created! Check your inbox for a verification link before logging in.
+                    If you don't see it within a minute, check your <strong>spam or junk folder</strong>.
                 </div>
                 <p class="form-footer"><a href="/login.php">Back to Login</a></p>
             <?php else: ?>
